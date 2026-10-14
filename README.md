@@ -1,6 +1,6 @@
 # Unit Conversion Web API
 
-A clean, easy-to-understand **ASP.NET Core (.NET 9)** MVC Web API for converting numerical values between units of measurement (Length, Temperature, Weight/Mass, Volume, Speed, and Time).
+MVC Web API for converting numerical values between units of measurement (Length, Temperature, Weight/Mass, Volume, Speed, and Time).
 
 Built with standard ASP.NET Core conventions (Controllers, Models, Services), minimal exception handling, and an intuitive design that easily scales to support hundreds of units and external databases.
 
@@ -112,11 +112,6 @@ The application uses standard ASP.NET Core dependency injection and a 3-layer MV
 
 3. The API will start on:
    - `http://localhost:5022`
-
-### Run with Visual Studio / VS Code
-
-- **Visual Studio 2022**: Open `Conversions.sln`, set `Conversions` as the Startup Project, and press `F5` (or `Ctrl+F5`).
-- **VS Code**: Open the workspace and run `dotnet run --project Conversions` in the terminal.
 
 ### Interactive Swagger UI
 
@@ -262,17 +257,6 @@ Expected output:
 ```text
 Passed!  - Failed: 0, Passed: 40, Skipped: 0, Total: 40
 ```
-
-Tests cover:
-- Metric and imperial linear conversions (Length, Weight, Volume, Speed, Time).
-- Temperature conversions across Celsius, Fahrenheit, and Kelvin scales.
-- Alias and abbreviation resolution.
-- Precision rounding.
-- Physical boundaries (absolute zero rejection).
-- Error conditions (unknown units, incompatible categories).
-- Controller action responses and HTTP status codes.
-
----
 
 ## Project Structure
 
