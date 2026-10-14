@@ -1,0 +1,44 @@
+## Visual Studio / .NET .gitignore
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.dtbcache*
+*.vsidx
+TestStore/
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+
+# JetBrains Rider / VS Code
+.idea/
+*.DotSettings.user
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Test results & coverage
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini

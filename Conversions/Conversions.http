@@ -1,0 +1,187 @@
+@Conversions_HostAddress = http://localhost:5022
+
+### ============================================================
+### 1. HEALTH / DISCOVERY ENDPOINTS
+### ============================================================
+
+### Get all supported measurement categories
+GET {{Conversions_HostAddress}}/api/v1/conversions/categories
+Accept: application/json
+
+###
+
+### Get all supported units (all categories)
+GET {{Conversions_HostAddress}}/api/v1/conversions/units
+Accept: application/json
+
+###
+
+### Get units filtered by category: Length
+GET {{Conversions_HostAddress}}/api/v1/conversions/units?category=Length
+Accept: application/json
+
+###
+
+### Get units filtered by category: Temperature
+GET {{Conversions_HostAddress}}/api/v1/conversions/units?category=Temperature
+Accept: application/json
+
+###
+
+### Get units filtered by category: Weight
+GET {{Conversions_HostAddress}}/api/v1/conversions/units?category=Weight
+Accept: application/json
+
+###
+
+### ============================================================
+### 2. CORE CONVERSION ENDPOINTS (POST)
+### ============================================================
+
+### Convert Length: 100 meters to feet (with 2 decimal precision)
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 100,
+  "sourceUnit": "meter",
+  "targetUnit": "foot",
+  "precision": 2
+}
+
+###
+
+### Convert Temperature: 25 Celsius to Fahrenheit
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 25,
+  "sourceUnit": "celsius",
+  "targetUnit": "fahrenheit",
+  "precision": 1
+}
+
+###
+
+### Convert Weight/Mass: 75 kilograms to pounds (using aliases 'kg' and 'lbs')
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 75,
+  "sourceUnit": "kg",
+  "targetUnit": "lbs",
+  "precision": 2
+}
+
+###
+
+### Convert Volume: 5 liters to US gallons
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 5,
+  "sourceUnit": "liter",
+  "targetUnit": "gallon",
+  "precision": 3
+}
+
+###
+
+### Convert Speed: 100 km/h to mph
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 100,
+  "sourceUnit": "kmh",
+  "targetUnit": "mph",
+  "precision": 2
+}
+
+###
+
+### Convert Time: 2.5 hours to minutes
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 2.5,
+  "sourceUnit": "hour",
+  "targetUnit": "minute"
+}
+
+###
+
+### ============================================================
+### 3. CONVERSION VIA QUERY PARAMETERS (GET)
+### ============================================================
+
+### Convert via GET query: 10 miles to kilometers
+GET {{Conversions_HostAddress}}/api/v1/conversions?value=10&sourceUnit=mile&targetUnit=kilometer&precision=2
+Accept: application/json
+
+###
+
+### ============================================================
+### 4. ERROR HANDLING & VALIDATION CASES
+### ============================================================
+
+### Incompatible Units (Length to Weight) -> Expects 400 Bad Request
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 100,
+  "sourceUnit": "meter",
+  "targetUnit": "kilogram"
+}
+
+###
+
+### Unknown Unit -> Expects 404 Not Found
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 100,
+  "sourceUnit": "lightyear",
+  "targetUnit": "meter"
+}
+
+###
+
+### Temperature below absolute zero (-300 °C) -> Expects 422 Unprocessable Entity
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": -300,
+  "sourceUnit": "celsius",
+  "targetUnit": "kelvin"
+}
+
+###
+
+### Validation Error: Missing unit and negative precision -> Expects 400 Bad Request
+POST {{Conversions_HostAddress}}/api/v1/conversions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "value": 50,
+  "sourceUnit": "",
+  "targetUnit": "meter",
+  "precision": -5
+}
