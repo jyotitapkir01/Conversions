@@ -1,73 +1,48 @@
-using Conversions.Application.DTOs;
-using Conversions.Application.Services;
-using FluentValidation;
+using Conversions.Models;
+using Conversions.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Conversions.Controllers;
 
-/// <summary>
-/// Provides endpoints for unit conversions, supported units catalog, and category discovery.
-/// </summary>
 [ApiController]
+[Route("api/[controller]")]
 [Route("api/v1/[controller]")]
-[Produces("application/json")]
 public class ConversionsController : ControllerBase
 {
     private readonly IConversionService _conversionService;
-    private readonly IValidator<ConversionRequest> _validator;
 
-    public ConversionsController(
-        IConversionService conversionService,
-        IValidator<ConversionRequest> validator)
+    public ConversionsController(IConversionService conversionService)
     {
-        _conversionService = conversionService ?? throw new ArgumentNullException(nameof(conversionService));
-        _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+        _conversionService = conversionService;
     }
 
     /// <summary>
-    /// Converts a numerical value from one unit of measurement to another.
+    /// Converts a numerical value from one unit to another.
     /// </summary>
-    /// <param name="request">The conversion parameters (value, source unit, target unit, optional precision).</param>
-    /// <returns>The conversion result including converted value, units, category, and applied calculation formula.</returns>
-    /// <response code="200">Conversion completed successfully.</response>
-    /// <response code="400">Invalid input parameters, missing fields, or incompatible unit categories.</response>
-    /// <response code="404">Source or target unit was not recognized.</response>
-    /// <response code="422">Value violates physical/mathematical domain constraints (e.g. below absolute zero).</response>
     [HttpPost]
-    [ProducesResponseType(typeof(ConversionResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<ConversionResponse>> ConvertAsync([FromBody] ConversionRequest request)
+    public IActionResult Convert([FromBody] ConversionRequest request)
     {
-        var validationResult = await _validator.ValidateAsync(request);
-        if (!validationResult.IsValid)
+        if (!ModelState.IsValid)
         {
-            throw new ValidationException(validationResult.Errors);
+            return BadRequest(ModelState);
         }
 
-        var response = _conversionService.Convert(request);
-        return Ok(response);
+        try
+        {
+            var result = _conversionService.Convert(request);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>
-    /// Converts a numerical value using query parameters (convenient for GET/browser requests).
+    /// Converts a numerical value via query parameters.
     /// </summary>
-    /// <param name="value">Numerical value to convert.</param>
-    /// <param name="sourceUnit">Source unit identifier or alias (e.g. "m", "meter", "celsius", "kg").</param>
-    /// <param name="targetUnit">Target unit identifier or alias (e.g. "ft", "foot", "fahrenheit", "lb").</param>
-    /// <param name="precision">Optional decimal rounding precision (0-15).</param>
-    /// <returns>The conversion result.</returns>
-    /// <response code="200">Conversion completed successfully.</response>
-    /// <response code="400">Invalid input parameters or incompatible unit categories.</response>
-    /// <response code="404">Source or target unit was not recognized.</response>
-    /// <response code="422">Value violates physical domain constraints.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(ConversionResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<ActionResult<ConversionResponse>> ConvertViaQueryAsync(
+    public IActionResult ConvertViaQuery(
         [FromQuery] decimal value,
         [FromQuery] string sourceUnit,
         [FromQuery] string targetUnit,
@@ -81,36 +56,24 @@ public class ConversionsController : ControllerBase
             Precision = precision
         };
 
-        var validationResult = await _validator.ValidateAsync(request);
-        if (!validationResult.IsValid)
-        {
-            throw new ValidationException(validationResult.Errors);
-        }
-
-        var response = _conversionService.Convert(request);
-        return Ok(response);
+        return Convert(request);
     }
 
     /// <summary>
-    /// Retrieves all supported units of measurement, optionally filtered by category.
+    /// Returns supported units, optionally filtered by category.
     /// </summary>
-    /// <param name="category">Optional filter (e.g. "Length", "Temperature", "Weight", "Volume", "Speed", "Time").</param>
-    /// <returns>List of supported units and their metadata.</returns>
     [HttpGet("units")]
-    [ProducesResponseType(typeof(IEnumerable<UnitDto>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<UnitDto>> GetUnits([FromQuery] string? category = null)
+    public IActionResult GetUnits([FromQuery] string? category = null)
     {
         var units = _conversionService.GetUnits(category);
         return Ok(units);
     }
 
     /// <summary>
-    /// Retrieves all supported measurement categories.
+    /// Returns all supported measurement categories.
     /// </summary>
-    /// <returns>List of category names.</returns>
     [HttpGet("categories")]
-    [ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
-    public ActionResult<IEnumerable<string>> GetCategories()
+    public IActionResult GetCategories()
     {
         var categories = _conversionService.GetCategories();
         return Ok(categories);

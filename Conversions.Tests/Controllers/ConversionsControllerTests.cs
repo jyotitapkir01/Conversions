@@ -1,18 +1,10 @@
 namespace Conversions.Tests.Controllers;
 
-using Conversions.Application.DTOs;
-using Conversions.Application.Services;
-using Conversions.Application.Validators;
 using Conversions.Controllers;
-using Conversions.Domain.Exceptions;
-using Conversions.Domain.Interfaces;
-using Conversions.Domain.Strategies;
-using Conversions.Infrastructure;
+using Conversions.Models;
+using Conversions.Services;
 using FluentAssertions;
-using FluentValidation;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 public class ConversionsControllerTests
@@ -21,23 +13,13 @@ public class ConversionsControllerTests
 
     public ConversionsControllerTests()
     {
-        var registry = new HardcodedUnitRegistry();
-        var strategies = new IConversionStrategy[]
-        {
-            new LinearConversionStrategy(),
-            new TemperatureConversionStrategy()
-        };
-        var logger = NullLogger<ConversionService>.Instance;
-        var service = new ConversionService(registry, strategies, logger);
-        var validator = new ConversionRequestValidator();
-
-        _controller = new ConversionsController(service, validator);
+        var service = new ConversionService();
+        _controller = new ConversionsController(service);
     }
 
     [Fact]
-    public async Task ConvertAsync_ValidPayload_ReturnsOkWithConvertedResult()
+    public void Convert_ValidRequest_ReturnsOkWithResult()
     {
-        // Arrange
         var request = new ConversionRequest
         {
             Value = 100,
@@ -46,65 +28,88 @@ public class ConversionsControllerTests
             Precision = 2
         };
 
-        // Act
-        var actionResult = await _controller.ConvertAsync(request);
+        var actionResult = _controller.Convert(request);
 
-        // Assert
-        actionResult.Result.Should().BeOfType<OkObjectResult>();
-        var okResult = (OkObjectResult)actionResult.Result!;
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
         var response = okResult.Value.Should().BeOfType<ConversionResponse>().Subject;
 
-        response.Source.Value.Should().Be(100m);
-        response.Target.Value.Should().Be(328.08m);
+        response.Value.Should().Be(100m);
+        response.ConvertedValue.Should().Be(328.08m);
         response.Category.Should().Be("Length");
     }
 
     [Fact]
-    public async Task ConvertAsync_InvalidPayload_ThrowsValidationException()
+    public void Convert_InvalidModelState_ReturnsBadRequest()
     {
-        // Arrange
+        _controller.ModelState.AddModelError("SourceUnit", "Source unit is required.");
+
         var request = new ConversionRequest
         {
             Value = 100,
-            SourceUnit = "", // Missing source unit
+            SourceUnit = "",
             TargetUnit = "feet"
         };
 
-        // Act
-        Func<Task> act = async () => await _controller.ConvertAsync(request);
+        var actionResult = _controller.Convert(request);
 
-        // Assert
-        await act.Should().ThrowAsync<ValidationException>();
+        actionResult.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]
-    public async Task ConvertViaQueryAsync_ValidParams_ReturnsOkWithConvertedResult()
+    public void Convert_UnknownUnit_ReturnsBadRequestWithError()
     {
-        // Act
-        var actionResult = await _controller.ConvertViaQueryAsync(
+        var request = new ConversionRequest
+        {
+            Value = 10,
+            SourceUnit = "unknown_xyz",
+            TargetUnit = "meter"
+        };
+
+        var actionResult = _controller.Convert(request);
+
+        actionResult.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public void Convert_IncompatibleCategories_ReturnsBadRequestWithError()
+    {
+        var request = new ConversionRequest
+        {
+            Value = 10,
+            SourceUnit = "meter",
+            TargetUnit = "kilogram"
+        };
+
+        var actionResult = _controller.Convert(request);
+
+        actionResult.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public void ConvertViaQuery_ValidParams_ReturnsOkWithResult()
+    {
+        var actionResult = _controller.ConvertViaQuery(
             value: 0,
             sourceUnit: "celsius",
             targetUnit: "fahrenheit",
             precision: 1);
 
-        // Assert
-        actionResult.Result.Should().BeOfType<OkObjectResult>();
-        var okResult = (OkObjectResult)actionResult.Result!;
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
         var response = okResult.Value.Should().BeOfType<ConversionResponse>().Subject;
 
-        response.Target.Value.Should().Be(32.0m);
+        response.ConvertedValue.Should().Be(32.0m);
         response.Category.Should().Be("Temperature");
     }
 
     [Fact]
-    public void GetUnits_NoFilter_ReturnsAllUnits()
+    public void GetUnits_ReturnsListOfUnits()
     {
-        // Act
         var actionResult = _controller.GetUnits();
 
-        // Assert
-        actionResult.Result.Should().BeOfType<OkObjectResult>();
-        var okResult = (OkObjectResult)actionResult.Result!;
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
         var units = okResult.Value.Should().BeAssignableTo<IEnumerable<UnitDto>>().Subject;
 
         units.Should().NotBeEmpty();
@@ -113,12 +118,10 @@ public class ConversionsControllerTests
     [Fact]
     public void GetCategories_ReturnsCategoryList()
     {
-        // Act
         var actionResult = _controller.GetCategories();
 
-        // Assert
-        actionResult.Result.Should().BeOfType<OkObjectResult>();
-        var okResult = (OkObjectResult)actionResult.Result!;
+        actionResult.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)actionResult;
         var categories = okResult.Value.Should().BeAssignableTo<IEnumerable<string>>().Subject;
 
         categories.Should().Contain(new[] { "Length", "Weight", "Temperature" });

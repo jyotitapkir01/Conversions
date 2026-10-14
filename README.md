@@ -1,18 +1,18 @@
-# Unit Conversion API
+# Unit Conversion Web API
 
-A robust, extensible RESTful Web API built with **ASP.NET Core (.NET 9)** to convert numerical values between various units of measurement (Length, Temperature, Weight/Mass, Volume, Speed, and Time).
+A clean, easy-to-understand **ASP.NET Core (.NET 9)** MVC Web API for converting numerical values between units of measurement (Length, Temperature, Weight/Mass, Volume, Speed, and Time).
 
-Designed following clean, modular software engineering practices suitable for a real-world team environment, with support for future scalability to hundreds of units and non-linear conversion formulas.
+Built with standard ASP.NET Core conventions (Controllers, Models, Services), minimal exception handling, and an intuitive design that easily scales to support hundreds of units and external databases.
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
-- [Architecture & Design](#architecture--design)
+- [Architecture & Simplicity](#architecture--simplicity)
   - [Design Decisions & Trade-Offs](#design-decisions--trade-offs)
   - [How the System Scales to Hundreds of Units](#how-the-system-scales-to-hundreds-of-units)
-- [Supported Measurement Categories & Units](#supported-measurement-categories--units)
+- [Supported Categories & Units](#supported-categories--units)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Run with .NET CLI](#run-with-net-cli)
@@ -21,9 +21,9 @@ Designed following clean, modular software engineering practices suitable for a 
 - [API Reference & Examples](#api-reference--examples)
   - [1. Convert Units (POST)](#1-convert-units-post)
   - [2. Convert Units via Query Parameters (GET)](#2-convert-units-via-query-parameters-get)
-  - [3. List Supported Categories (GET)](#3-list-supported-categories-get)
-  - [4. List Supported Units (GET)](#4-list-supported-units-get)
-  - [5. Error Responses](#5-error-responses)
+  - [3. List Categories (GET)](#3-list-categories-get)
+  - [4. List Units (GET)](#4-list-units-get)
+  - [5. Error Handling](#5-error-handling)
 - [Running Automated Tests](#running-automated-tests)
 - [Project Structure](#project-structure)
 
@@ -31,75 +31,64 @@ Designed following clean, modular software engineering practices suitable for a 
 
 ## Features
 
-- **Multi-Category Conversions**: Supports Length, Temperature, Weight/Mass, Volume, Speed, and Time.
-- **Flexible Unit Resolution**: Recognizes unit IDs, symbols, and common aliases/plurals (e.g. `m`, `meter`, `meters`, `metre`).
-- **High-Precision Calculations**: Uses `decimal` (128-bit) arithmetic to eliminate floating-point precision errors, with optional user-specified decimal rounding.
-- **Strategy Pattern Architecture**: Separates linear ratio conversions from affine/non-linear conversions (e.g. Temperature with offset baselines).
-- **Extensible Unit Registry**: Decoupled behind `IUnitRegistry` interface for seamless migration to a database or configuration file.
-- **Input Validation**: Validates payloads using FluentValidation (field presence, lengths, precision ranges).
-- **RFC 7807 Standard Error Handling**: Centralized global exception middleware returns structured `ProblemDetails` for errors (400 Bad Request, 404 Not Found, 422 Unprocessable Entity, 500 Internal Error).
-- **Interactive OpenAPI/Swagger**: Self-documenting API with XML summaries, served at the application root (`/`).
-- **Thorough Test Coverage**: 80+ unit and integration tests covering domain strategies, services, validation, controllers, and edge cases.
+- **Standard MVC Web API Structure**: Straightforward `Controllers`, `Models`, and `Services` layers without over-complicated abstractions.
+- **Multiple Categories**: Length, Temperature, Weight/Mass, Volume, Speed, and Time.
+- **Flexible Unit Resolution**: Case-insensitive resolution supporting IDs, symbols, and plurals/aliases (e.g., `m`, `meter`, `meters`, `metre`).
+- **Minimal, Clean Exception Handling**: Handled via standard ASP.NET Core `ModelState` validation and clean `ArgumentException` responses (`400 Bad Request`).
+- **High-Precision Calculations**: Uses `decimal` (128-bit) arithmetic to avoid floating-point inaccuracies, with optional precision rounding.
+- **Interactive Swagger UI**: Explore and test all endpoints directly in the browser at the application root (`/`).
+- **Complete Test Suite**: Comprehensive xUnit tests covering conversions, boundary cases, error conditions, and controllers.
 
 ---
 
-## Architecture & Design
+## Architecture & Simplicity
 
-The solution follows a clean, layered structure with clear separation of concerns:
+The application uses standard ASP.NET Core dependency injection and a 3-layer MVC architecture:
 
 ```
 [ HTTP Request ]
        │
        ▼
-[ ConversionsController ] ── (Validates input DTO)
+[ ConversionsController ] ── Validates request via DataAnnotations ([Required], [Range])
        │
        ▼
-[ ConversionService ] ─────── (Coordinates workflow)
-    ├── [ IUnitRegistry ] ─── (Resolves units & checks category compatibility)
-    └── [ IConversionStrategy ]
-            ├── LinearConversionStrategy      (Length, Weight, Volume, Speed, Time)
-            └── TemperatureConversionStrategy (Celsius, Fahrenheit, Kelvin, Rankine)
+[ ConversionService ] ───── Resolves units, performs conversion & formatting
        │
        ▼
-[ HTTP Response / ProblemDetails ]
+[ HTTP Response ]
 ```
 
 ### Design Decisions & Trade-Offs
 
 | Decision | Rationale | Trade-Off |
 | :--- | :--- | :--- |
-| **`decimal` vs `double`** | Financial and scientific conversions require exact decimal representations without binary floating-point rounding quirks (e.g. `0.1 + 0.2 != 0.3` in `double`). | Slightly slower computational speed than native CPU IEEE 754 floats, but negligible for REST API loads. |
-| **Canonical Base Unit (Pivot)** | Every linear unit defines a `ConversionFactorToBase` (e.g., meters for Length, kilograms for Weight). Conversion is simply `(Value * SourceFactor) / TargetFactor`. Adding $N$ units requires $N$ conversion factors instead of $N \times (N - 1)$ manual pair combinations. | Requires picking a canonical base unit for each category. |
-| **Strategy Pattern for Conversions** | Linear conversions have a constant multiplier; temperature conversions have temperature offsets ($T_K = T_C + 273.15$, $(T_F - 32) \times \frac{5}{9}$). The `IConversionStrategy` interface allows handling both transparently without polluting the codebase with `if/else` checks. | Adds an interface and multiple strategy implementations, but follows Open/Closed Principle (OCP). |
-| **In-Memory Registry Behind Interface** | For this challenge, units are hardcoded in `HardcodedUnitRegistry` implementing `IUnitRegistry`. Because `ConversionService` only depends on `IUnitRegistry`, moving to an EF Core database implementation in the future requires zero changes to application logic. | Data is compiled into the binary rather than dynamic at runtime, but perfectly fits current requirements. |
-| **Global Exception Middleware** | Domain exceptions (`UnitNotFoundException`, `IncompatibleUnitsException`, `InvalidConversionException`) are mapped to HTTP status codes (`404`, `400`, `422`) via standard RFC 7807 `ProblemDetails`. | Requires keeping exception mappings synchronized if new domain exceptions are introduced. |
+| **Standard MVC Layers (Controllers, Models, Services)** | Keeps the codebase accessible, intuitive, and easy to explain. Avoids over-engineering for a focused Web API. | Less rigid than full enterprise Clean Architecture, but significantly easier to maintain and navigate. |
+| **Minimal Exception Handling** | The controller uses standard `ModelState` validation and catches `ArgumentException` for domain errors (unknown units, incompatible categories, negative absolute zero), returning simple `400 Bad Request` JSON. | No need for heavy custom middleware or multiple custom exception classes. |
+| **Canonical Base-Unit Normalization** | For linear categories (Length, Weight, Volume, Speed, Time), each unit defines a `FactorToBase` relative to a reference unit (e.g. meter, kg). Conversion is `(value * sourceFactor) / targetFactor`. | Requires choosing a base unit per category, but eliminates the need for $N \times (N - 1)$ manual pair combinations. |
+| **Kelvin Pivot for Temperature** | Temperature is non-linear due to offsets. Normalizing input to Kelvin ($T_K$) first and then converting Kelvin to the target unit makes adding new temperature scales straightforward. | Handled via a dedicated helper method rather than complex external strategy classes. |
+| **`decimal` Precision** | Floating-point types (`double`, `float`) suffer from binary representation quirks (e.g. `0.1 + 0.2 != 0.3`). `decimal` ensures financial and mathematical accuracy. | Slower than native CPU floating-point operations, but negligible for REST APIs. |
 
 ### How the System Scales to Hundreds of Units
 
 1. **Adding New Linear Units**:
-   - Simply add a new `UnitDefinition` to the registry with its `ConversionFactorToBase` and aliases.
-   - No code changes are required in `ConversionService` or `LinearConversionStrategy`.
-2. **Adding New Categories**:
-   - If the new category is linear (e.g., Energy: Joules, Calories, kWh; or Pressure: Pascal, Bar, PSI), add the units with their base factor. The `LinearConversionStrategy` automatically handles them.
-   - If the category requires custom formulas (e.g., logarithmic units like Decibels), implement a new `IConversionStrategy` and register it in `Program.cs`.
-3. **Database Migration**:
-   - Implement `EfCoreUnitRegistry : IUnitRegistry` backed by SQLite/PostgreSQL/SQL Server.
-   - Swap `builder.Services.AddSingleton<IUnitRegistry, HardcodedUnitRegistry>()` to `builder.Services.AddScoped<IUnitRegistry, EfCoreUnitRegistry>()`.
+   - Adding a unit only requires 1 entry with its `FactorToBase` (e.g., `new() { Id = "yard", FactorToBase = 0.9144m }`).
+   - The conversion formula `(Value * SourceFactor) / TargetFactor` remains identical for all linear units.
+2. **Moving to a Database (Future Scale)**:
+   - The `IConversionService` contract decouples callers from data storage.
+   - To load hundreds of units from SQLite, PostgreSQL, or SQL Server, simply replace the in-memory list with an EF Core `DbContext.Units` query.
 
 ---
 
-## Supported Measurement Categories & Units
+## Supported Categories & Units
 
-| Category | Canonical Base Unit | Supported Units & Common Aliases |
+| Category | Reference Base Unit | Supported Units & Common Aliases |
 | :--- | :--- | :--- |
-| **Length** | Meter (`m`) | Meter (`m`), Kilometer (`km`), Centimeter (`cm`), Millimeter (`mm`), Mile (`mi`), Yard (`yd`), Foot (`ft`, `feet`), Inch (`in`), Nautical Mile (`nmi`) |
+| **Length** | Meter (`m`) | Meter (`m`, `meters`), Kilometer (`km`), Centimeter (`cm`), Millimeter (`mm`), Mile (`mi`), Yard (`yd`), Foot (`ft`, `feet`), Inch (`in`), Nautical Mile (`nmi`) |
 | **Weight / Mass** | Kilogram (`kg`) | Kilogram (`kg`, `kilo`), Gram (`g`), Milligram (`mg`), Metric Ton (`t`, `tonne`), Pound (`lb`, `lbs`), Ounce (`oz`), Stone (`st`) |
 | **Temperature** | Kelvin (`K`) | Celsius (`°C`, `c`), Fahrenheit (`°F`, `f`), Kelvin (`K`), Rankine (`°R`, `r`) |
-| **Volume** | Liter (`L`) | Liter (`l`, `litre`), Milliliter (`ml`, `mL`), Cubic Meter (`m³`, `m3`), US Gallon (`gal`), US Pint (`pt`) |
-| **Speed** | Meter per second (`m/s`) | Meter/sec (`m/s`), Kilometer/hour (`km/h`, `kmh`), Mile/hour (`mph`), Knot (`kn`, `kt`) |
+| **Volume** | Liter (`L`) | Liter (`l`), Milliliter (`ml`), Cubic Meter (`m³`), US Gallon (`gal`), US Pint (`pt`) |
+| **Speed** | Meter per second (`m/s`) | Meter/sec (`m/s`), Kilometer/hour (`km/h`), Mile/hour (`mph`), Knot (`kn`) |
 | **Time** | Second (`s`) | Second (`s`, `sec`), Millisecond (`ms`), Minute (`min`), Hour (`h`, `hr`), Day (`d`) |
-
-*All unit lookups are case-insensitive and support standard names, symbols, and plural forms.*
 
 ---
 
@@ -107,41 +96,35 @@ The solution follows a clean, layered structure with clear separation of concern
 
 ### Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) (or latest stable .NET SDK)
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 
 ### Run with .NET CLI
 
-1. Clone or open the repository folder:
-   ```bash
-   cd Conversions
-   ```
-
-2. Restore dependencies and build the solution:
+1. Open your terminal in the solution root directory:
    ```bash
    dotnet build
    ```
 
-3. Run the Web API project:
+2. Run the Web API:
    ```bash
    dotnet run --project Conversions
    ```
 
-4. The API will start at:
+3. The API will start on:
    - `http://localhost:5022`
-   - `https://localhost:7011`
 
 ### Run with Visual Studio / VS Code
 
-- **Visual Studio 2022**: Open `Conversions.sln`, select `Conversions` as the startup project, and press `F5` or `Ctrl+F5`.
-- **VS Code**: Open the folder, press `Ctrl+Shift+B` to build, or run `dotnet run --project Conversions` in the integrated terminal.
+- **Visual Studio 2022**: Open `Conversions.sln`, set `Conversions` as the Startup Project, and press `F5` (or `Ctrl+F5`).
+- **VS Code**: Open the workspace and run `dotnet run --project Conversions` in the terminal.
 
 ### Interactive Swagger UI
 
-Once running, navigate to the root URL in your browser:
+Open your browser to:
 
-👉 **[http://localhost:5022](http://localhost:5022)** (or `http://localhost:5022/swagger`)
+👉 **[http://localhost:5022](http://localhost:5022)**
 
-From here, you can explore the OpenAPI schema and execute test requests directly in your browser.
+You will see the Swagger UI where you can test each endpoint interactively.
 
 ---
 
@@ -149,10 +132,10 @@ From here, you can explore the OpenAPI schema and execute test requests directly
 
 ### 1. Convert Units (POST)
 
-**Endpoint:** `POST /api/v1/conversions`  
+**Endpoint:** `POST /api/conversions`  
 **Headers:** `Content-Type: application/json`
 
-#### Request Body
+#### Request
 ```json
 {
   "value": 100,
@@ -165,16 +148,10 @@ From here, you can explore the OpenAPI schema and execute test requests directly
 #### Response (`200 OK`)
 ```json
 {
-  "source": {
-    "value": 100,
-    "unit": "Meter",
-    "symbol": "m"
-  },
-  "target": {
-    "value": 328.08,
-    "unit": "Foot",
-    "symbol": "ft"
-  },
+  "value": 100,
+  "sourceUnit": "Meter",
+  "convertedValue": 328.08,
+  "targetUnit": "Foot",
   "category": "Length",
   "formula": "100 m × 3.2808398950131233595800524934 = 328.08 ft"
 }
@@ -184,23 +161,15 @@ From here, you can explore the OpenAPI schema and execute test requests directly
 
 ### 2. Convert Units via Query Parameters (GET)
 
-Convenient for browser queries or simple scripts:
-
-**Endpoint:** `GET /api/v1/conversions?value=25&sourceUnit=celsius&targetUnit=fahrenheit&precision=1`
+**Endpoint:** `GET /api/conversions?value=25&sourceUnit=celsius&targetUnit=fahrenheit&precision=1`
 
 #### Response (`200 OK`)
 ```json
 {
-  "source": {
-    "value": 25,
-    "unit": "Celsius",
-    "symbol": "°C"
-  },
-  "target": {
-    "value": 77.0,
-    "unit": "Fahrenheit",
-    "symbol": "°F"
-  },
+  "value": 25,
+  "sourceUnit": "Celsius",
+  "convertedValue": 77.0,
+  "targetUnit": "Fahrenheit",
   "category": "Temperature",
   "formula": "(25 °C × 9/5) + 32 = 77 °F"
 }
@@ -208,9 +177,9 @@ Convenient for browser queries or simple scripts:
 
 ---
 
-### 3. List Supported Categories (GET)
+### 3. List Categories (GET)
 
-**Endpoint:** `GET /api/v1/conversions/categories`
+**Endpoint:** `GET /api/conversions/categories`
 
 #### Response (`200 OK`)
 ```json
@@ -226,9 +195,9 @@ Convenient for browser queries or simple scripts:
 
 ---
 
-### 4. List Supported Units (GET)
+### 4. List Units (GET)
 
-**Endpoint:** `GET /api/v1/conversions/units?category=Length`
+**Endpoint:** `GET /api/conversions/units?category=Length`
 
 #### Response (`200 OK`)
 ```json
@@ -238,7 +207,6 @@ Convenient for browser queries or simple scripts:
     "name": "Meter",
     "symbol": "m",
     "category": "Length",
-    "isBaseUnit": true,
     "aliases": ["meter", "meters", "metre", "metres"]
   },
   {
@@ -246,7 +214,6 @@ Convenient for browser queries or simple scripts:
     "name": "Kilometer",
     "symbol": "km",
     "category": "Length",
-    "isBaseUnit": false,
     "aliases": ["kilometer", "kilometers", "kilometre", "kilometres"]
   }
 ]
@@ -254,42 +221,30 @@ Convenient for browser queries or simple scripts:
 
 ---
 
-### 5. Error Responses
-
-All error responses strictly follow the **RFC 7807 ProblemDetails** format:
+### 5. Error Handling
 
 #### Incompatible Categories (`400 Bad Request`)
 Attempting to convert meters to kilograms:
 ```json
 {
-  "type": "about:blank",
-  "title": "Incompatible Units",
-  "status": 400,
-  "detail": "Cannot convert between incompatible categories: 'Meter' (Length) and 'Kilogram' (Weight).",
-  "instance": "/api/v1/conversions"
+  "error": "Cannot convert between incompatible categories: 'Meter' (Length) and 'Kilogram' (Weight)."
 }
 ```
 
-#### Unknown Unit (`404 Not Found`)
+#### Unknown Unit (`400 Bad Request`)
 ```json
 {
-  "type": "about:blank",
-  "title": "Unit Not Found",
-  "status": 404,
-  "detail": "Unit 'lightyear' was not recognized.",
-  "instance": "/api/v1/conversions"
+  "error": "Unit 'unknown_unit' is not supported."
 }
 ```
 
-#### Physical Domain Violation (`422 Unprocessable Entity`)
-Attempting to convert temperature below absolute zero ($< 0\text{ K}$ / $-273.15\text{ }^\circ\text{C}$):
+#### Validation Error (`400 Bad Request`)
+When required fields are missing:
 ```json
 {
-  "type": "about:blank",
-  "title": "Invalid Conversion",
-  "status": 422,
-  "detail": "Temperature value '-300 °C' is below absolute zero (0 K / -273.15 °C / -459.67 °F).",
-  "instance": "/api/v1/conversions"
+  "errors": {
+    "SourceUnit": ["Source unit is required."]
+  }
 }
 ```
 
@@ -297,9 +252,7 @@ Attempting to convert temperature below absolute zero ($< 0\text{ K}$ / $-273.15
 
 ## Running Automated Tests
 
-The solution includes an extensive suite of automated tests using **xUnit** and **FluentAssertions**.
-
-Run all tests from the repository root:
+Run the test suite with:
 
 ```bash
 dotnet test
@@ -307,16 +260,17 @@ dotnet test
 
 Expected output:
 ```text
-Passed!  - Failed: 0, Passed: 83, Skipped: 0, Total: 83
+Passed!  - Failed: 0, Passed: 40, Skipped: 0, Total: 40
 ```
 
-Test coverage includes:
-- **Unit Registry Tests**: Name resolution, case-insensitivity, alias mapping, unknown unit handling.
-- **Linear Strategy Tests**: Metric and imperial conversions across length, weight, volume, speed, and time.
-- **Temperature Strategy Tests**: Celsius $\leftrightarrow$ Fahrenheit $\leftrightarrow$ Kelvin $\leftrightarrow$ Rankine, absolute zero boundaries.
-- **Validator Tests**: Required fields, maximum lengths, precision limits.
-- **Service Tests**: Strategy orchestration, precision rounding, formula output generation.
-- **Controller Tests**: HTTP responses, status codes, query-string endpoints.
+Tests cover:
+- Metric and imperial linear conversions (Length, Weight, Volume, Speed, Time).
+- Temperature conversions across Celsius, Fahrenheit, and Kelvin scales.
+- Alias and abbreviation resolution.
+- Precision rounding.
+- Physical boundaries (absolute zero rejection).
+- Error conditions (unknown units, incompatible categories).
+- Controller action responses and HTTP status codes.
 
 ---
 
@@ -325,35 +279,29 @@ Test coverage includes:
 ```
 Conversions/
 ├── Conversions.sln                    # Solution entry point
-├── .editorconfig                      # Shared team code styling rules
-├── .gitignore                         # Standard .NET git ignore rules
-├── README.md                          # Project documentation
+├── .editorconfig                      # Formatting rules
+├── .gitignore                         # Git ignore file
+├── README.md                          # Documentation
 │
-├── Conversions/                       # ASP.NET Core Web API Project
-│   ├── Conversions.csproj             # Dependencies & targets (net9.0)
-│   ├── Conversions.http               # Ready-to-run HTTP requests for VS / VS Code
-│   ├── Program.cs                     # Application setup, DI, Swagger, & middleware
-│   ├── appsettings.json               # Environment configuration
+├── Conversions/                       # ASP.NET Core Web API
+│   ├── Conversions.csproj             # Project configuration (.NET 9)
+│   ├── Conversions.http               # Sample HTTP requests
+│   ├── Program.cs                     # Startup and DI configuration
+│   ├── appsettings.json               # Application configuration
 │   ├── Controllers/
-│   │   └── ConversionsController.cs   # REST API endpoints (POST, GET, units catalog)
-│   ├── Application/
-│   │   ├── DTOs/                      # Request and Response transfer models
-│   │   ├── Services/                  # Conversion orchestration service & contract
-│   │   └── Validators/                # FluentValidation rules
-│   ├── Domain/
-│   │   ├── Models/                    # UnitDefinition, CategoryConstants
-│   │   ├── Interfaces/                # IUnitRegistry contract
-│   │   ├── Strategies/                # IConversionStrategy, Linear & Temperature strategies
-│   │   └── Exceptions/                # Domain-specific exception types
-│   ├── Infrastructure/
-│   │   └── HardcodedUnitRegistry.cs   # In-memory unit dictionary & alias index
-│   └── Middleware/
-│       └── GlobalExceptionHandlerMiddleware.cs  # RFC 7807 ProblemDetails error handler
+│   │   └── ConversionsController.cs   # HTTP endpoints (POST, GET, metadata)
+│   ├── Models/
+│   │   ├── ConversionRequest.cs       # Input DTO with validation attributes
+│   │   ├── ConversionResponse.cs      # Output DTO
+│   │   └── UnitDefinition.cs          # Unit definition and factor
+│   └── Services/
+│       ├── IConversionService.cs      # Service interface
+│       └── ConversionService.cs       # Conversion logic & unit lookup
 │
 └── Conversions.Tests/                 # xUnit Test Project
-    ├── Conversions.Tests.csproj       # Test dependencies (xUnit, FluentAssertions)
-    ├── Domain/                        # Strategy calculation tests
-    ├── Infrastructure/                # Registry lookup & alias tests
-    ├── Application/                   # Service & validator unit tests
-    └── Controllers/                   # Controller action & status code tests
+    ├── Conversions.Tests.csproj
+    ├── Controllers/
+    │   └── ConversionsControllerTests.cs # Controller tests
+    └── Services/
+        └── ConversionServiceTests.cs    # Conversion logic tests
 ```
