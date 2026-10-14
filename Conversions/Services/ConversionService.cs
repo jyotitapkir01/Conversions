@@ -1,6 +1,6 @@
-namespace Conversions.Services;
-
 using Conversions.Models;
+
+namespace Conversions.Services;
 
 /// <summary>
 /// Service that handles unit conversions across multiple measurement categories.
